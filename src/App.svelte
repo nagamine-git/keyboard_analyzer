@@ -2,6 +2,7 @@
   import {onMount} from 'svelte';
   import Keyboard from './Keyboard.svelte';
   import Chart from 'svelte-frappe-charts';
+  import BalanceChart from './BalanceChart.svelte';
   import kuromoji from './kuromoji/kuromoji.js';
   import {numEisu, numKanji, kanaToHira, conv_aozora, conv_kana, analyzeKeyboard, hankaku, eisuHankaku} from "./analyzer.js";
 
@@ -27,6 +28,18 @@
   import shinjis from './keyboards/jis_shinjis.json';
   import keinarabe from './keyboards/jis_keinarabe.json';
   import tsuki from './keyboards/jis_tsuki.json';
+  import shingetsu from './keyboards/jis_shingetsu.json';
+  import shingetsu_base from './keyboards/jis_shingetsu_base.json';
+  import shingetsu_v1 from './keyboards/jis_shingetsu_v1.json';
+  import shingetsu_v2 from './keyboards/jis_shingetsu_v2.json';
+  import shingetsu_v3 from './keyboards/jis_shingetsu_v3.json';
+  import shingetsu_v4 from './keyboards/jis_shingetsu_v4.json';
+  import shingetsu_v5 from './keyboards/jis_shingetsu_v5.json';
+  import shingetsu_v6 from './keyboards/jis_shingetsu_v6.json';
+  import shingetsu_v7 from './keyboards/jis_shingetsu_v7.json';
+  import shingetsu_latest from './keyboards/jis_shingetsu_latest.json';
+  import shingetsu_v01 from './keyboards/jis_shingetsu_v01.json';
+  import shingetsu_v011 from './keyboards/jis_shingetsu_v011.json';
 
   // Material UI
   import Textfield from '@smui/textfield';
@@ -53,6 +66,18 @@
     "新下駄": shingeta,
     "飛鳥123": asuka,
     "月配列2-263": tsuki,
+    "新月配列 v0.1": shingetsu_v01,
+    "新月配列 v0.11": shingetsu_v011,
+    "新月配列 Base": shingetsu_base,
+    "新月配列 v1": shingetsu_v1,
+    "新月配列 v2": shingetsu_v2,
+    "新月配列 v3": shingetsu_v3,
+    "新月配列 v4": shingetsu_v4,
+    "新月配列 v5": shingetsu_v5,
+    "新月配列 v6": shingetsu_v6,
+    "新月配列 v7": shingetsu_v7,
+    "新月配列 Latest": shingetsu_latest,
+    "新月配列": shingetsu,
     "けいならべ": keinarabe,
     "Eucalynローマ字": eucalyn,
     "Dvorak": dvorak,
@@ -83,6 +108,10 @@
   $: nkanji = numKanji(text);
   $: neisu = numEisu(text);
 
+  // 複数配列の比較用
+  let compare_keyboards = [selected_kb];
+  let compareDialog = false;
+
   // 出力UI
   let ul; // 入力できなかった文字数
   // let ntext; // 入力した文字数
@@ -109,6 +138,7 @@
   let samefinger_chart;
   let arpeggio_chart;
   let row_chart;
+  let balance_chart;
 
   // 辞書をロード
   onMount(() => {
@@ -129,6 +159,22 @@
   function kbchange() {
     remark = keyboards[selected_kb].remark;
     mykeyboard = keyboards[selected_kb];
+  }
+
+  function calculateBalanceScore(r, ntype_val, nshift_val, naction_val, nkana_val) {
+    const douyubiScore = Math.max(0, Math.min(100, 100 - (r.nDouyubi / (naction_val - 1) * 100)));
+    const dangoeScore = Math.max(0, Math.min(100, 100 - (r.nDangoe / (naction_val - 1) * 100)));
+    const homeScore = Math.max(0, Math.min(100, (r.nHomeNS / (ntype_val - nshift_val) * 100)));
+    const keystrokeScore = Math.max(0, Math.min(100, 100 - ((ntype_val / nkana_val - 1.0) * 50)));
+    const kougoScore = Math.max(0, Math.min(100, (r.nKougo / (naction_val - 1) * 100)));
+
+    return {
+      douyubiScore: douyubiScore.toFixed(1),
+      dangoeScore: dangoeScore.toFixed(1),
+      homeScore: homeScore.toFixed(1),
+      keystrokeScore: keystrokeScore.toFixed(1),
+      kougoScore: kougoScore.toFixed(1)
+    };
   }
 
   function startAnalsys() {
@@ -186,9 +232,12 @@
     right = r.right;
     keyseq = r.keys.join("");
 
-    let arpeggioLegend = mykeyboard.arpeggio.map(function(a){
-      return mykeyboard.keys[a[0][0]][a[0][1]].legend[0] + mykeyboard.keys[a[1][0]][a[1][1]].legend[0];
-    })
+    let arpeggioLegend = [];
+    if (mykeyboard.arpeggio && mykeyboard.arpeggio.length > 0) {
+      arpeggioLegend = mykeyboard.arpeggio.map(function(a){
+        return mykeyboard.keys[a[0][0]][a[0][1]].legend[0] + mykeyboard.keys[a[1][0]][a[1][1]].legend[0];
+      });
+    }
 
     finger_chart = {
       labels: ['左小', '左薬', '左中', '左人', '左親', '右親', '右人', '右中', '右薬', '右小'],
@@ -257,6 +306,69 @@
         }
       ]
     };
+
+    // バランスチャート用のデータ計算
+    // 比較する配列がある場合は、複数のデータセットを作成
+    if (compare_keyboards.length > 1) {
+      let datasets = [];
+
+      for (let kb_name of compare_keyboards) {
+        let kb = keyboards[kb_name];
+        let compare_r = analyzeKeyboard(ktext, kb);
+        let compare_scores = calculateBalanceScore(
+          compare_r,
+          compare_r.nType,
+          compare_r.nShift,
+          compare_r.nAction,
+          compare_r.nKana
+        );
+
+        datasets.push({
+          label: kb_name,
+          values: [
+            compare_scores.douyubiScore,
+            compare_scores.dangoeScore,
+            compare_scores.homeScore,
+            compare_scores.keystrokeScore,
+            compare_scores.kougoScore
+          ]
+        });
+      }
+
+      balance_chart = {
+        labels: [
+          '同指連続率の低さ',
+          '段越えの少なさ',
+          'ホームポジション率',
+          '総打鍵数の少なさ',
+          '左右交互打鍵率'
+        ],
+        datasets: datasets
+      };
+    } else {
+      // 単一配列の場合
+      const scores = calculateBalanceScore(r, ntype, nshift, naction, nkana);
+      balance_chart = {
+        labels: [
+          '同指連続率の低さ',
+          '段越えの少なさ',
+          'ホームポジション率',
+          '総打鍵数の少なさ',
+          '左右交互打鍵率'
+        ],
+        datasets: [{
+          label: selected_kb,
+          values: [
+            scores.douyubiScore,
+            scores.dangoeScore,
+            scores.homeScore,
+            scores.keystrokeScore,
+            scores.kougoScore
+          ]
+        }]
+      };
+    }
+
     showresult = "finished";
   }
 
@@ -318,6 +430,35 @@
       </Actions>
   </Dialog>
   <Button color="secondary" on:click={() => (optionDialog = true)}><Label>オプション選択</Label></Button>
+
+  <Dialog bind:open={compareDialog} aria-labelledby="compare-title" aria-describedby="compare-content" >
+      <Title id="compare-title">比較する配列を選択</Title>
+      <Content id="compare-content">
+        {#each Object.keys(keyboards) as k}
+          <div class="optionfield">
+            <FormField>
+              <Checkbox
+                checked={compare_keyboards.includes(k)}
+                on:change={(e) => {
+                  if (e.target.checked) {
+                    compare_keyboards = [...compare_keyboards, k];
+                  } else {
+                    compare_keyboards = compare_keyboards.filter(kb => kb !== k);
+                  }
+                }}
+              />
+              <span slot="label">{k}</span>
+            </FormField>
+          </div>
+        {/each}
+      </Content>
+      <Actions>
+        <Button action="accept">
+          <Label>閉じる</Label>
+        </Button>
+      </Actions>
+  </Dialog>
+  <Button color="secondary" on:click={() => (compareDialog = true)}><Label>比較する配列</Label></Button>
 
   <Dialog bind:open={remarkDialog} aria-labelledby="remark-title" aria-describedby="remark-content" >
       <Title id="remark-title">{selected_kb}</Title>
@@ -498,6 +639,15 @@
             </Row>
           </Body>
         </DataTable>
+      </Card>
+    </div>
+
+    <div class="card-container">
+      <Card style="width: 600px; margin: 3px;" variant="outlined" padded>
+        配列評価バランスチャート
+        <div style="width: 500px; height: 450px; margin: 0 auto;">
+          <BalanceChart data={balance_chart} />
+        </div>
       </Card>
     </div>
 

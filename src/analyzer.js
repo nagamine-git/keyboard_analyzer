@@ -93,8 +93,13 @@ function preprocess() {
   finger_onaji2 = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
   finger_onaji3 = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
 
-  arpeggio = new Array(keyboard.arpeggio.length);
-  arpeggio.fill(0);
+  // arpeggioプロパティが存在しない場合は空配列を使用
+  if (keyboard.arpeggio && keyboard.arpeggio.length > 0) {
+    arpeggio = new Array(keyboard.arpeggio.length);
+    arpeggio.fill(0);
+  } else {
+    arpeggio = [];
+  }
   douteList = [];
 
   shift_key = []; // 直前に押していたシフトキー
@@ -454,6 +459,9 @@ function hand(keys) {
 }
 
 function findArpeggio(keys) {
+  if (!keyboard.arpeggio || keyboard.arpeggio.length === 0) {
+    return;
+  }
   for (let i = 0; i < keyboard.arpeggio.length; i++) {
     let ar = keyboard.arpeggio[i];
     let k1 = keyboard.keys[ar[0][0]][ar[0][1]];
