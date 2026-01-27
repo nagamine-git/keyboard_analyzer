@@ -28,10 +28,32 @@
   import shinjis from './keyboards/jis_shinjis.json';
   import keinarabe from './keyboards/jis_keinarabe.json';
   import tsuki from './keyboards/jis_tsuki.json';
+  import tsuki_u9rc2 from './keyboards/jis_tsuki_u9rc2.json';
+  import tsuki_custom from './keyboards/jis_tsuki_custom.json';
   import shingetsu from './keyboards/jis_shingetsu.json';
   import shingetsu_base from './keyboards/jis_shingetsu_base.json';
   import shingetsu_v1 from './keyboards/jis_shingetsu_v1.json';
   import shingetsu_v2 from './keyboards/jis_shingetsu_v2.json';
+  import shingetsu_v2_old from './keyboards/jis_shingetsu_v2_old.json';
+  import shingetsu_v3_4 from './keyboards/jis_shingetsu_v3_4.json';
+  import shingetsu_v3_4_1 from './keyboards/jis_shingetsu_v3_4_1.json';
+  import shingetsu_v3_4_2 from './keyboards/jis_shingetsu_v3_4_2.json';
+  import shingetsu_v3_4_3 from './keyboards/jis_shingetsu_v3_4_3.json';
+  import shingetsu_v3_4_4 from './keyboards/jis_shingetsu_v3_4_4.json';
+  import shingetsu_4_4 from './keyboards/jis_shingetsu_4_4.json';
+  import shingetsu_4_5 from './keyboards/jis_shingetsu_4_5.json';
+  import shingetsu_5_0 from './keyboards/jis_shingetsu_5_0.json';
+  import shingetsu_5_1 from './keyboards/jis_shingetsu_5_1.json';
+  import shingetsu_5_2_ansi from './keyboards/ansi_shingetsu_5_2.json';
+  import shingetsu_5_3_ansi from './keyboards/ansi_shingetsu_5_3.json';
+  import shingetsu_5_4_ansi from './keyboards/ansi_shingetsu_5_4.json';
+  import shingetsu_5_5_ansi from './keyboards/ansi_shingetsu_5_5.json';
+  import shingetsu_5_6_ansi from './keyboards/ansi_shingetsu_5_6.json';
+  import shingetsu_5_7_ansi from './keyboards/ansi_shingetsu_5_7.json';
+  import shingetsu_5_8_ansi from './keyboards/ansi_shingetsu_5_8.json';
+  import shingetsu_5_9_ansi from './keyboards/ansi_shingetsu_5_9.json';
+  import shingetsu_5_10_ansi from './keyboards/ansi_shingetsu_5_10.json';
+  import shingetsu_7_0_ansi from './keyboards/ansi_shingetsu_7_0.json';
   import shingetsu_v3 from './keyboards/jis_shingetsu_v3.json';
   import shingetsu_v4 from './keyboards/jis_shingetsu_v4.json';
   import shingetsu_v5 from './keyboards/jis_shingetsu_v5.json';
@@ -66,11 +88,33 @@
     "新下駄": shingeta,
     "飛鳥123": asuka,
     "月配列2-263": tsuki,
+    "月配列U9RC2": tsuki_u9rc2,
+    "月配列改": tsuki_custom,
     "新月配列 v0.1": shingetsu_v01,
     "新月配列 v0.11": shingetsu_v011,
     "新月配列 Base": shingetsu_base,
     "新月配列 v1": shingetsu_v1,
-    "新月配列 v2": shingetsu_v2,
+    "新月配列 3.3": shingetsu_v2,
+    "新月配列 3.4": shingetsu_v3_4,
+    "新月配列 3.4.1": shingetsu_v3_4_1,
+    "新月配列 3.4.2": shingetsu_v3_4_2,
+    "新月配列 3.4.3": shingetsu_v3_4_3,
+    "新月配列 3.4.4": shingetsu_v3_4_4,
+    "新月配列 4.4": shingetsu_4_4,
+    "新月配列 4.5": shingetsu_4_5,
+    "新月配列 5.0": shingetsu_5_0,
+    "新月配列 5.1": shingetsu_5_1,
+    "新月配列 5.2 (ANSI)": shingetsu_5_2_ansi,
+    "新月配列 5.3 (ANSI)": shingetsu_5_3_ansi,
+    "新月配列 5.4 (ANSI)": shingetsu_5_4_ansi,
+    "新月配列 5.5 (ANSI)": shingetsu_5_5_ansi,
+    "新月配列 5.6 (ANSI)": shingetsu_5_6_ansi,
+    "新月配列 5.7 (ANSI)": shingetsu_5_7_ansi,
+    "新月配列 5.8 (ANSI)": shingetsu_5_8_ansi,
+    "新月配列 5.9 (ANSI)": shingetsu_5_9_ansi,
+    "新月配列 5.10 (ANSI)": shingetsu_5_10_ansi,
+    "新月配列 7.0 (ANSI)": shingetsu_7_0_ansi,
+    "新月配列 v2": shingetsu_v2_old,
     "新月配列 v3": shingetsu_v3,
     "新月配列 v4": shingetsu_v4,
     "新月配列 v5": shingetsu_v5,
@@ -111,6 +155,81 @@
   // 複数配列の比較用
   let compare_keyboards = [selected_kb];
   let compareDialog = false;
+
+  // ヒートマップレイヤー選択
+  let selected_heatmap_layer = "all";
+  const heatmap_layers = {
+    "全体": "all",
+    "シフトなし": "layer0",
+    "★シフト(d/k)": "layer1",
+    "◆シフト(清音拗音)": "layer2",
+    "★+゛シフト(濁音拗音)": "layer3"
+  };
+
+  // サンプルテキスト
+  let selected_sample = "";
+  const samples = {
+    "サンプルなし": "",
+    "10,000文字": "samples/sample_10k.txt",
+    "100,000文字": "samples/sample_100k.txt",
+    "1,000,000文字": "samples/sample_1m.txt"
+  };
+
+  async function loadSample() {
+    if (!selected_sample || selected_sample === "") {
+      return;
+    }
+
+    try {
+      const response = await fetch(selected_sample);
+      if (response.ok) {
+        text = await response.text();
+        console.log(`サンプルテキスト読み込み完了: ${text.length}文字`);
+      } else {
+        console.error('サンプルテキストの読み込みに失敗しました');
+      }
+    } catch (error) {
+      console.error('エラー:', error);
+    }
+  }
+
+  // ヒートマップレイヤーを更新する関数
+  function updateHeatmapLayer() {
+    if (!mykeyboard || !mykeyboard.keys) return;
+
+    let maxv = 0;
+
+    // 選択されたレイヤーの最大値を計算
+    for (let tk of mykeyboard.keys.flat()) {
+      let count;
+      if (selected_heatmap_layer === "all") {
+        count = tk.count || 0;
+      } else {
+        count = tk.layerCounts && tk.layerCounts[selected_heatmap_layer] || 0;
+      }
+      if (maxv < count) maxv = count;
+    }
+
+    // 各キーのvalueを更新
+    for (let tk of mykeyboard.keys.flat()) {
+      let count;
+      if (selected_heatmap_layer === "all") {
+        count = tk.count || 0;
+      } else {
+        count = tk.layerCounts && tk.layerCounts[selected_heatmap_layer] || 0;
+      }
+      tk.value = maxv > 0 ? count / maxv : 0;
+    }
+
+    // キーボードを再描画するためにランダム値を更新
+    mykeyboard.rev = Math.random();
+    mykeyboard = mykeyboard; // Svelteの反応性を発火させる
+  }
+
+  // レイヤー選択が変更されたら更新
+  $: if (selected_heatmap_layer) {
+    updateHeatmapLayer();
+  }
 
   // 出力UI
   let ul; // 入力できなかった文字数
@@ -369,6 +488,9 @@
       };
     }
 
+    // ヒートマップのレイヤー表示を更新
+    updateHeatmapLayer();
+
     showresult = "finished";
   }
 
@@ -387,6 +509,15 @@
   <Textfield style="width: 100%;" helperLine$style="width: 100%;" textarea bind:value={text} label="入力テキスト" >
   <HelperText slot="helper">{ntext}文字、漢字{nkanji}文字、英数記号{neisu}</HelperText>
   </Textfield>
+
+  <div class="inputfield">
+    <Select bind:value={selected_sample} label="サンプルテキスト" >
+      {#each Object.keys(samples) as s}
+        <Option value={samples[s]}>{s}</Option>
+      {/each}
+    </Select>
+    <Button color="secondary" on:click={loadSample} variant="outlined"><Label>サンプル読込</Label></Button>
+  </div>
 
   <div class="inputfield">
     <Select bind:value={selected_kb} label="配列" >
@@ -653,7 +784,14 @@
 
     <div class="card-container">
       <Card style="width: 600px; margin: 3px;" variant="outlined" padded>
-        キー打鍵ヒートマップ
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+          <span>キー打鍵ヒートマップ</span>
+          <Select bind:value={selected_heatmap_layer} label="表示レイヤー" style="min-width: 150px;">
+            {#each Object.entries(heatmap_layers) as [name, value]}
+              <Option value={value}>{name}</Option>
+            {/each}
+          </Select>
+        </div>
         <div class="kbd">
           <Keyboard layout={mykeyboard} />
         </div>

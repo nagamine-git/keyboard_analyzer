@@ -112,6 +112,31 @@ function preprocess() {
     tk.tandoku = 0; // 単独
     tk.douji = 0; // シフトではない同時押し
     tk.shifted = 0; // シフト入力
+    tk.layerCounts = {}; // レイヤーごとの打鍵数
+  }
+}
+
+// シフトキーからレイヤーを判定する関数
+function getLayer(shiftKeys, keys) {
+  if (shiftKeys.length === 0) {
+    return "layer0"; // シフトなし
+  }
+
+  // シフトキーをソートして文字列化（順序に依存しないように）
+  const sortedKeys = [...shiftKeys].sort().join(",");
+
+  // 特定のシフトパターンを判定
+  if (sortedKeys === ":" || sortedKeys === "'" || sortedKeys === "/" || sortedKeys === "shift") {
+    return "layer2"; // ◆/Shiftシフト（清音拗音）JIS=:, ANSI='(5.2-5.6), ANSI=/(5.7+), 7.0=shift
+  } else if (sortedKeys === "d,l" || sortedKeys === "k,l" || sortedKeys === "l,d" || sortedKeys === "l,k" ||
+             sortedKeys === ";,d" || sortedKeys === ";,k" || sortedKeys === "d,;" || sortedKeys === "k,;") {
+    return "layer3"; // ★+゛/゜シフト（濁音/半濁音拗音）5.7-5.8: ;=゛゜, 5.9-5.10: l=゛゜, 7.0: l=゛゜
+  } else if (sortedKeys === "d") {
+    return "layer1"; // dシフト（★）
+  } else if (sortedKeys === "k") {
+    return "layer1"; // kシフト（★）
+  } else {
+    return "layer_other"; // その他のシフト
   }
 }
 
@@ -216,6 +241,9 @@ function evaluateKeyCombination(c1, c0) {
     }
   }
 
+  // レイヤーを判定
+  const layer = getLayer(c1.shift, c1.keys);
+
   for (let ck of c1.keys) {
     if (c1.shift.length > 0) {
       keydic[ck].shifted++;
@@ -226,6 +254,12 @@ function evaluateKeyCombination(c1, c0) {
     }
     keydic[ck].count++;
     ntype++;
+
+    // レイヤーごとにカウント
+    if (!keydic[ck].layerCounts[layer]) {
+      keydic[ck].layerCounts[layer] = 0;
+    }
+    keydic[ck].layerCounts[layer]++;
   }
 
   if (c1.shift.length == 0) { // シフトキーを押していない
@@ -340,7 +374,51 @@ function evaluateKeyCombination(c1, c0) {
 
 }
 
+// 拗音を結合する前処理関数
+function combineYouon(text, keyboard) {
+  // キーボードの変換テーブルに存在する拗音のみを結合
+  const youonPatterns = [
+    // 清音拗音（5.4用）
+    ['ひ', 'ゃ', 'ひゃ'], ['ひ', 'ゅ', 'ひゅ'], ['ひ', 'ょ', 'ひょ'],
+    ['し', 'ゃ', 'しゃ'], ['し', 'ゅ', 'しゅ'], ['し', 'ょ', 'しょ'],
+    ['き', 'ゃ', 'きゃ'], ['き', 'ゅ', 'きゅ'], ['き', 'ょ', 'きょ'],
+    ['ち', 'ゃ', 'ちゃ'], ['ち', 'ゅ', 'ちゅ'], ['ち', 'ょ', 'ちょ'],
+    ['ふ', 'ゅ', 'ふゅ'],
+    ['り', 'ゃ', 'りゃ'], ['り', 'ゅ', 'りゅ'], ['り', 'ょ', 'りょ'],
+    ['に', 'ゃ', 'にゃ'], ['に', 'ゅ', 'にゅ'], ['に', 'ょ', 'にょ'],
+    ['み', 'ゃ', 'みゃ'], ['み', 'ゅ', 'みゅ'], ['み', 'ょ', 'みょ'],
+    // 濁音拗音（基本）
+    ['び', 'ゃ', 'びゃ'], ['び', 'ゅ', 'びゅ'], ['び', 'ょ', 'びょ'],
+    ['ぴ', 'ゃ', 'ぴゃ'], ['ぴ', 'ゅ', 'ぴゅ'],
+    ['じ', 'ゃ', 'じゃ'], ['じ', 'ゅ', 'じゅ'], ['じ', 'ょ', 'じょ'],
+    ['ぢ', 'ゃ', 'ぢゃ'],
+    ['ぎ', 'ゃ', 'ぎゃ'], ['ぎ', 'ゅ', 'ぎゅ'], ['ぎ', 'ょ', 'ぎょ'],
+    ['で', 'ゅ', 'でゅ'],
+    // 特殊拗音（ANSI 5.2用）
+    ['ぜ', 'ぇ', 'ぜぇ'], ['べ', 'ぇ', 'べぇ'], ['び', 'ぃ', 'びぃ'],
+    ['ぐ', 'ぅ', 'ぐぅ'], ['で', 'ぃ', 'でぃ'], ['じ', 'ぇ', 'じぇ'],
+    ['ぞ', 'ぉ', 'ぞぉ'], ['ど', 'ぅ', 'どぅ'], ['だ', 'ぁ', 'だぁ'],
+    ['ぎ', 'ぃ', 'ぎぃ'], ['じ', 'ぃ', 'じぃ'], ['ぜ', 'ぃ', 'ぜぃ'],
+    ['げ', 'ぇ', 'げぇ'],
+    // ヴ拗音（ひらがな）
+    ['ゔ', 'ぁ', 'ゔぁ'], ['ゔ', 'ぇ', 'ゔぇ'], ['ゔ', 'ぃ', 'ゔぃ']
+  ];
+
+  let result = text;
+  // 変換テーブルに存在するパターンのみ結合
+  for (let pattern of youonPatterns) {
+    if (keyboard.conversion && keyboard.conversion[pattern[2]]) {
+      const regex = new RegExp(pattern[0] + pattern[1], 'g');
+      result = result.replace(regex, pattern[2]);
+    }
+  }
+
+  return result;
+}
+
 function doAnalyze() {
+  // 拗音を結合（変換テーブルに存在するもののみ）
+  text = combineYouon(text, keyboard);
   console.log(text);
 
   // キー打鍵列へ変換する
